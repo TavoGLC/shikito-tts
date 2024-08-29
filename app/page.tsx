@@ -68,6 +68,10 @@ function PlaySoundFromArray(array:any) {
   source.connect(audioContext.destination);
   source.buffer = audioBuffer;
   source.start();
+  source.onended = () => {
+    source.disconnect(audioContext.destination);
+  }
+
 }
 
 const sleep = (delay:number) => new Promise((resolve) => setTimeout(resolve, delay))
@@ -87,7 +91,7 @@ async function PlayAudio(model:tf.LayersModel|null,text:string){
     }
     const localArray = GenerateAudio(model,finalWord)
     PlaySoundFromArray(localArray.slice(500,44100))
-    await sleep(1000)
+    await sleep(980)
   }
 }
 
