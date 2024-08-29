@@ -1,112 +1,160 @@
-import Image from "next/image";
+"use client"
+
+import Link from "next/link";
+
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/components/ui/use-toast"
+import { useState, useEffect } from "react"
+
+import * as tf from '@tensorflow/tfjs';
+
+function ValidateWords(word:string){
+  const characters = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','ñ','o','p','q','r','s','t','u','v','w','x','y','z','á','é','í','ó','ú']
+  const wrd = word.toLocaleLowerCase()
+  let newWord = ""
+  for (const c of wrd){
+    if (characters.includes(c)){
+      newWord = newWord.concat(c)
+    }
+  }
+  return newWord
+}
+
+function EncodeCharacter(character:string){
+  const characters = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','ñ','o','p','q','r','s','t','u','v','w','x','y','z','á','é','í','ó','ú']
+  const encoding = []
+  for (var i = 0; i < characters.length; i++) {
+    if (character === characters[i]){
+      encoding.push(1)
+    }
+    else{
+      encoding.push(0)
+    }
+  }
+  return encoding
+}
+
+function EncodeWord(word:string){
+  const encoding = []
+  const paddingLength = 16-word.length
+  for (const c of word){
+    encoding.push(EncodeCharacter(c))
+  }
+  for (var i = 0; i < paddingLength; i++){
+    encoding.push(EncodeCharacter(" "))
+  }
+  return encoding
+}
+
+function GenerateAudio(model:tf.LayersModel|null,data:string){
+  let audio:any = []
+  if(model!= null){
+    const encodedData = EncodeWord(data)
+    const ardata = tf.tensor3d([encodedData])
+    const localdata = (model.predict(ardata) as tf.Tensor)
+    audio = localdata.arraySync() as any
+  }
+  return audio[0]
+}
+
+function PlaySoundFromArray(array:any) {
+  const sound = new Float32Array(array)
+  const sampleRate = 44100
+  const audioContext = new AudioContext({sampleRate});
+  const audioBuffer = audioContext.createBuffer(1, sound.length, sampleRate);
+  audioBuffer.copyToChannel(sound, 0);
+  const source = audioContext.createBufferSource();
+  source.connect(audioContext.destination);
+  source.buffer = audioBuffer;
+  source.start();
+}
+
+const sleep = (delay:number) => new Promise((resolve) => setTimeout(resolve, delay))
+
+async function PlayAudio(model:tf.LayersModel|null,text:string){
+  const formatedText = text.replaceAll('\n', ' ')
+  const words = formatedText.split(" ")
+  
+  for (const wrd of words){
+    const processedWord = ValidateWords(wrd)
+    let finalWord
+    if (processedWord.length>16){
+      finalWord = processedWord.slice(0,16)
+    }
+    else{
+      finalWord = processedWord
+    }
+    const localArray = GenerateAudio(model,finalWord)
+    PlaySoundFromArray(localArray.slice(500,44100))
+    await sleep(980)
+  }
+}
 
 export default function Home() {
+
+  const { toast } = useToast()
+
+  const URLs = ['http://localhost:3000/shikitito-model/model.json','http://localhost:3000/shikito-model/model.json']
+  const [modelURL, setModelURL] = useState(URLs[1])
+  const [audioModel, setAudioModel] = useState<null|tf.LayersModel>(null)
+
+  useEffect(()=>{
+    const LoadModel = async () => {
+      const model = await tf.loadLayersModel(modelURL);
+      setAudioModel(model)
+    }
+    LoadModel()}
+    ,[modelURL])
+  
+  const [text, setText] = useState("introduce el texto por favor")
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:size-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+    <main>
+      <div className="flex flex-col h-screen justify-center items-center space-y-10">
+
+        <div className="flex flex-col justify-center items-center">
+          <p className="text-[25px]">shikito-TTS </p>
+          <p className="text-[15px]">el sintetizador de voz más pequeño del mundo</p>
+          <p className="text-[10px]">shikito-TTS es un modelo destilado de myshell-ai/MeloTTS-Spanish</p>
         </div>
-      </div>
-
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-balance text-sm opacity-50">
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
+        <div className="flex flex-col justify-center items-center space-y-2">
+          <p className="text-[15px]">Selecciona el modelo </p>
+          <div className="space-x-10">
+            <Button 
+              onClick={() => {
+                setModelURL(URLs[0])
+                toast({
+                  variant: "destructive",
+                  title: "Cargando el modelo shikitito",
+                  description: "Cuidado el uso del modelo shikitito por periodos prolongados puede abrir puertas dimensionales y atraer otras entidades chungas.",
+                })
+              }}>
+              shikititio
+            </Button>
+            <Button 
+              onClick={() => {
+                setModelURL(URLs[1])
+                toast({
+                  title: "Cargando el modelo shikito",
+                  description: "Modelo shikito cargado",
+                })
+              }}>
+              shikito
+            </Button>
+          </div>
+          <p className="text-[15px]"> Recuerda que por el momento los modelos shikitos no pueden procesar números por lo que estos caracteres serán removidos. </p>
+        </div>
+        <div className="flex flex-col justify-center items-center w-1/2 space-y-2">
+          <Textarea className="min-h-[200px]" placeholder="Introduce el texto por favor :3" value={text} onChange={e => setText(e.target.value)}></Textarea>
+          <Button onClick={()=> PlayAudio(audioModel,text)}> genera el audio </Button>
+        </div>
+        <div className="flex flex-col justify-center items-center w-1/2 space-y-2">
+        <p className="text-[15px]"> Recuerda que puedes realizar donaciones al proyecto o adquirir otros modelos de síntesis de voz a través del siguiente link. </p>
+          <Link href="https://buymeacoffee.com/tavoglc" target="_blank" rel="noopener noreferrer">
+            <Button title="Donate :3"> Donaciones </Button>
+          </Link>
+        </div>
       </div>
     </main>
   );
