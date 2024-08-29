@@ -87,7 +87,7 @@ async function PlayAudio(model:tf.LayersModel|null,text:string){
     }
     const localArray = GenerateAudio(model,finalWord)
     PlaySoundFromArray(localArray.slice(500,44100))
-    await sleep(980)
+    await sleep(1000)
   }
 }
 
