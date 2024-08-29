@@ -70,6 +70,7 @@ function PlaySoundFromArray(array:any) {
   source.start();
   source.onended = () => {
     source.disconnect(audioContext.destination);
+    source.buffer = null
   }
 
 }
