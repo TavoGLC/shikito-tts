@@ -95,7 +95,9 @@ export default function Home() {
 
   const { toast } = useToast()
 
-  const URLs = ['http://localhost:3000/shikitito-model/model.json','http://localhost:3000/shikito-model/model.json']
+  ///const URLs = ['http://localhost:3000/shikitito-model/model.json','http://localhost:3000/shikito-model/model.json']
+  const URLs = ['https://shikito-tts.vercel.app/shikitito-model/model.json','https://shikito-tts.vercel.app/shikito-model/model.json']
+  
   const [modelURL, setModelURL] = useState(URLs[1])
   const [audioModel, setAudioModel] = useState<null|tf.LayersModel>(null)
 
